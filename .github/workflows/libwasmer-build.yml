@@ -1,0 +1,46 @@
+name: libwasmer-build
+
+on:
+  push:
+    branches:
+      - main
+      - dev-laya
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build dynamic library for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            artifact_name: libwasmer_linux_amd64.so
+            make_target: capi-linux-amd64
+          - os: macos-15-intel
+            artifact_name: libwasmer_darwin_amd64.dylib
+            make_target: capi-osx-amd64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust 1.56.1
+        uses: dtolnay/rust-toolchain@1.56.1
+        
+      - name: Install patchelf (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y patchelf
+      - name: Make
+        run: make ${{ matrix.make_target }}
+      - name: Save artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: libs-${{ matrix.os }}
+          path: |
+            target/release/*.so
+            target/release/*.dylib
+            lib/runtime-c-api/wasmer.h
+            lib/runtime-c-api/wasmer.hh
